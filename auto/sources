@@ -3,7 +3,7 @@
 # Copyright (C) Nginx, Inc.
 
 
-CORE_MODULES="ngx_core_module ngx_errlog_module ngx_conf_module"
+CORE_MODULES="ngx_core_module ngx_errlog_module ngx_conf_module ngx_dt_module"
 
 CORE_INCS="src/core"
 
@@ -78,7 +78,8 @@ CORE_SRCS="src/core/nginx.c \
            src/core/ngx_open_file_cache.c \
            src/core/ngx_crypt.c \
            src/core/ngx_proxy_protocol.c \
-           src/core/ngx_syslog.c"
+           src/core/ngx_syslog.c \
+	   src/core/ngx_dt.c"
 
 
 EVENT_MODULES="ngx_events_module ngx_event_core_module"
