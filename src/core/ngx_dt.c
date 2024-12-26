@@ -6,8 +6,9 @@
 
 #include <ngx_config.h>
 #include <ngx_core.h>
+#include <ngx_event.h>
 
-#include "sqlite3.h"
+#include <ngx_dt.h>
 
 typedef struct {
 	ngx_flag_t  enable;
@@ -109,4 +110,12 @@ ngx_dt_enable(ngx_conf_t *cf, void *post, void *data)
 
 
     return NGX_CONF_OK;
+}
+
+void
+ngx_dt_connection(ngx_connection_t *conn, ngx_event_t *ev)
+{
+	
+	ngx_log_error(NGX_LOG_NOTICE, ev->log, 0, "Tracing connection %d msec %d", conn->number, conn->start_time);
+
 }
