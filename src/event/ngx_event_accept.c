@@ -8,7 +8,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_event.h>
-
+#include <ngx_dt.h>
 
 static ngx_int_t ngx_disable_accept_events(ngx_cycle_t *cycle, ngx_uint_t all);
 #if (NGX_HAVE_EPOLLEXCLUSIVE)
@@ -260,6 +260,8 @@ ngx_event_accept(ngx_event_t *ev)
         c->number = ngx_atomic_fetch_add(ngx_connection_counter, 1);
 
         c->start_time = ngx_current_msec;
+
+	ngx_dt_connection(c, ev);
 
 #if (NGX_STAT_STUB)
         (void) ngx_atomic_fetch_add(ngx_stat_handled, 1);
