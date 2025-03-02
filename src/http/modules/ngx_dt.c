@@ -216,7 +216,7 @@ ngx_dt_enable(ngx_conf_t *cf, ngx_command_t *cmf, void *conf)
     snap_args = dbsc_malloc(sizeof(struct snapshot_args));
 
     tab = dbsc_alloc(lib, "ngx",
-	"CREATE TABLE x(IVAL INTEGER PRIMARY KEY NOT NULL, USED INTEGER, TIMESTAMP INTEGER)",
+	"CREATE TABLE x(MODULES_N INTEGER PRIMARY KEY NOT NULL, MODULES_USED INTEGER, TIMESTAMP INTEGER)",
 	NULL, NULL, ngx_dt_snapshot, snap_args, row_best_index);
 
     if (tab == NULL) {
