@@ -6,13 +6,14 @@
 
 #include <ngx_config.h>
 #include <ngx_core.h>
+#include <ngx_connection.h>
 #include <ngx_http.h>
 
 #include <ngx_dt.h>
 
 #include <syslog.h> /* XXX - gnn debugging */
 
-#include "../../../../osdb/src/dbsidecar/include/dbsc/dbsc.h"
+#include "dbsc/dbsc.h"
 #include "sqlite3ext.h"
 
 static char *ngx_dt_enable(ngx_conf_t *cf, ngx_command_t *cmd, void *data);
@@ -62,18 +63,38 @@ ngx_module_t  ngx_http_dt_module = {
 
 static dbsc *lib;
 
-enum col { NGX_MODULES_N, NGX_MODULES_USED, NGX_TIMESTAMP };
-#define NUM_COLUMNS 3
+enum col {DT_CONN_TYPE, DT_CONN_BUFFERED, DT_CONN_LOG_ERROR,
+	DT_CONN_TIMEDOUT, DT_CONN_ERROR, DT_CONN_DESTROYED,
+	DT_CONN_PIPELINE, DT_CONN_IDLE, DT_CONN_REUSABLE, DT_CONN_CLOSE,
+	DT_CONN_SHARED, DT_CONN_SENDFILE, DT_CONN_SNDLOWAT,
+	DT_CONN_TCP_NODELAY, DT_CONN_TCP_NOPUSH, DT_CONN_NEED_LAST_BUF,
+	DT_CONN_NEED_FLUSH_BUF, DT_CONN_TIMESTAMP, DT_CONN_MAX};
 
 static int
-ngx_dt_copy_columns(dbsc_value **columns, struct timespec *when,
-    DBSC_DIGEST_CTX *context)
+ngx_dt_conn_columns(dbsc_value **columns, ngx_connection_t *conn,
+    struct timespec *when, DBSC_DIGEST_CTX *ctx)
 {
 
-	columns[NGX_MODULES_N] = new_dbsc_int64(ngx_cycle->modules_n, context);
-	columns[NGX_MODULES_USED] = new_dbsc_int64(ngx_cycle->modules_used,
-	    context);
-	columns[NGX_TIMESTAMP] = new_dbsc_int64(when->tv_sec, NULL);
+	columns[DT_CONN_TYPE] = new_dbsc_int64(conn->type, ctx);
+	columns[DT_CONN_BUFFERED] = new_dbsc_int64(conn->buffered, ctx);
+	columns[DT_CONN_LOG_ERROR] = new_dbsc_int64(conn->log_error, ctx);
+	columns[DT_CONN_TIMEDOUT] = new_dbsc_int64(conn->timedout, ctx);
+	columns[DT_CONN_ERROR] = new_dbsc_int64(conn->error, ctx);
+	columns[DT_CONN_DESTROYED] = new_dbsc_int64(conn->destroyed, ctx);
+	columns[DT_CONN_PIPELINE] = new_dbsc_int64(conn->pipeline, ctx);
+	columns[DT_CONN_IDLE] = new_dbsc_int64(conn->idle, ctx);
+	columns[DT_CONN_REUSABLE] = new_dbsc_int64(conn->reusable, ctx);
+	columns[DT_CONN_CLOSE] = new_dbsc_int64(conn->close, ctx);
+	columns[DT_CONN_SHARED] = new_dbsc_int64(conn->shared, ctx);
+	columns[DT_CONN_SENDFILE] = new_dbsc_int64(conn->sendfile, ctx);
+	columns[DT_CONN_SNDLOWAT] = new_dbsc_int64(conn->sndlowat, ctx);
+	columns[DT_CONN_TCP_NODELAY] = new_dbsc_int64(conn->tcp_nodelay, ctx);
+	columns[DT_CONN_TCP_NOPUSH] = new_dbsc_int64(conn->tcp_nopush, ctx);
+	columns[DT_CONN_NEED_LAST_BUF] = new_dbsc_int64(conn->need_last_buf, ctx);
+	columns[DT_CONN_NEED_FLUSH_BUF] = new_dbsc_int64(conn->need_flush_buf, ctx);
+
+	columns[DT_CONN_TIMESTAMP] = new_dbsc_int64(when->tv_sec, NULL);
+
 	return SQLITE_OK;
 }
 
@@ -86,31 +107,30 @@ struct snapshot_args {
 };
 
 void
-ngx_dt_snapshot(void *arg, struct timespec *when)
+ngx_dt_conn_snapshot(void *arg, struct timespec *when)
 {
 
 	struct snapshot_args *args = (struct snapshot_args *)arg;
 	dbsc_tab *pDtab = args->tab;
 	dbsc_snap *snap = dbsc_malloc(sizeof(struct dbsc_snap));
+	ngx_connection_t *conn;
 
-	snap->snap_table = new_dbsc_table(NUM_COLUMNS);
+	snap->snap_table = new_dbsc_table(DT_CONN_MAX);
 
-	dbsc_digest_init(&snap->context);
+	dbsc_digest_init(snap->context);
 
-	dbsc_value **columns = new_dbsc_columns(NUM_COLUMNS);
-	if (!columns) {
-		return;
-	}
-	ngx_dt_copy_columns(columns, when, &snap->context);
-	dbsc_table_push(snap->snap_table, columns);
-	
-#ifdef DEBUG
-	printf("proc digest: ");
-	for (size_t i = 0; i < 16; i++) {
-		printf("%02hhx", snap->digest[i]);
-	}
-	printf("\n");
-#endif
+	conn = ngx_cycle->connections;
+
+	for (ngx_uint_t i = 0; i < ngx_cycle->connection_n; i++) {
+		dbsc_value **columns = new_dbsc_columns(DT_CONN_MAX);
+		if (!columns) {
+			return;
+		}
+		ngx_dt_conn_columns(columns, &conn[i], when,
+		    snap->context);
+		dbsc_table_push(snap->snap_table, columns);
+        }
+
 	dbsc_snapshot_rotate((struct dbsc_tab *)pDtab, snap);
 }
 
@@ -196,16 +216,8 @@ ngx_dt_enable(ngx_conf_t *cf, ngx_command_t *cmf, void *conf)
 #endif
     dbsc_tab *tab;
     struct snapshot_args *snap_args = dbsc_malloc(sizeof(struct snapshot_args));
-    char *create = "CREATE VIRTUAL TABLE ngx USING ngx()";
+    char *create = "CREATE VIRTUAL TABLE conn USING conn()";
 
-/*
-    char *zErrMsg = 0;
-    int retval;
-
-    if (cf->enable == 0) {
-        return NGX_CONF_OK;
-    }
-*/
     lib = dbsc_init(1);
 
     if (lib == NULL) {
@@ -215,9 +227,9 @@ ngx_dt_enable(ngx_conf_t *cf, ngx_command_t *cmf, void *conf)
     
     snap_args = dbsc_malloc(sizeof(struct snapshot_args));
 
-    tab = dbsc_alloc(lib, "ngx",
-	"CREATE TABLE x(MODULES_N INTEGER PRIMARY KEY NOT NULL, MODULES_USED INTEGER, TIMESTAMP INTEGER)",
-	NULL, NULL, ngx_dt_snapshot, snap_args, row_best_index);
+    tab = dbsc_alloc(lib, "conn",
+	"CREATE TABLE x(DT_CONN_TYPE INTEGER, DT_CONN_BUFFERED INTEGER, DT_CONN_LOG_ERROR INTEGER, DT_CONN_TIMEDOUT INTEGER, DT_CONN_ERROR INTEGER, DT_CONN_DESTROYED INTEGER, DT_CONN_PIPELINE INTEGER, DT_CONN_IDLE INTEGER, DT_CONN_REUSABLE INTEGER, DT_CONN_CLOSE INTEGER, DT_CONN_SHARED INTEGER, DT_CONN_SENDFILE INTEGER, DT_CONN_SNDLOWAT INTEGER, DT_CONN_TCP_NODELAY INTEGER, DT_CONN_TCP_NOPUSH INTEGER, DT_CONN_NEED_LAST_BUF INTEGER, DT_CONN_NEED_FLUSH_BUF INTEGER, timestamp INTEGER)",
+	NULL, NULL, ngx_dt_conn_snapshot, snap_args, row_best_index);
 
     if (tab == NULL) {
 	    ngx_log_error(NGX_LOG_NOTICE, cf->log, 0, "Could not create table.\n");
