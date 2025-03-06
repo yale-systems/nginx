@@ -63,7 +63,84 @@ ngx_module_t  ngx_http_dt_module = {
 
 static dbsc *lib;
 
-enum col {DT_CONN_TYPE, DT_CONN_BUFFERED, DT_CONN_LOG_ERROR,
+struct snapshot_args {
+	dbsc_tab *tab;
+};
+
+enum listen {DT_LISTEN_TYPE, DT_LISTEN_BACKLOG, DT_LISTEN_RCVBUF,
+	DT_LISTEN_SNDBUF, DT_LISTEN_OPEN, DT_LISTEN_REMAIN,
+	DT_LISTEN_IGNORE, DT_LISTEN_BOUND, DT_LISTEN_INHERITED,
+	DT_LISTEN_NONBLOCKING_ACCEPT, DT_LISTEN_LISTEN,
+	DT_LISTEN_NONBLOCKING, DT_LISTEN_SHARED, DT_LISTEN_ADDR_NTOP,
+	DT_LISTEN_WILDCARD, DT_LISTEN_IPV6ONLY, DT_LISTEN_REUSEPORT,
+	DT_LISTEN_ADD_REUSEPORT, DT_LISTEN_KEEPALIVE, DT_LISTEN_QUIC,
+	DT_LISTEN_DEFERRED_ACCEPT, DT_LISTEN_DELETE_DEFERRED,
+	DT_LISTEN_ADD_DEFERRED, DT_LISTEN_FASTOPEN, DT_LISTEN_TIMESTAMP,
+	DT_LISTEN_MAX};
+
+static int
+ngx_dt_listen_columns(dbsc_value **columns, ngx_listening_t *listen,
+    struct timespec *when, DBSC_DIGEST_CTX *ctx)
+{
+
+	columns[DT_LISTEN_TYPE] = new_dbsc_int64(listen->type, ctx);
+	columns[DT_LISTEN_BACKLOG] = new_dbsc_int64(listen->backlog, ctx);
+	columns[DT_LISTEN_RCVBUF] = new_dbsc_int64(listen->rcvbuf, ctx);
+	columns[DT_LISTEN_SNDBUF] = new_dbsc_int64(listen->sndbuf, ctx);
+	columns[DT_LISTEN_OPEN] = new_dbsc_int64(listen->open, ctx);
+	columns[DT_LISTEN_REMAIN] = new_dbsc_int64(listen->remain, ctx);
+	columns[DT_LISTEN_IGNORE] = new_dbsc_int64(listen->ignore, ctx);
+	columns[DT_LISTEN_BOUND] = new_dbsc_int64(listen->bound, ctx);
+	columns[DT_LISTEN_INHERITED] = new_dbsc_int64(listen->inherited, ctx);
+	columns[DT_LISTEN_NONBLOCKING_ACCEPT] = new_dbsc_int64(listen->nonblocking_accept, ctx);
+	columns[DT_LISTEN_LISTEN] = new_dbsc_int64(listen->listen, ctx);
+	columns[DT_LISTEN_NONBLOCKING] = new_dbsc_int64(listen->nonblocking, ctx);
+	columns[DT_LISTEN_SHARED] = new_dbsc_int64(listen->shared, ctx);
+	columns[DT_LISTEN_ADDR_NTOP] = new_dbsc_int64(listen->addr_ntop, ctx);
+	columns[DT_LISTEN_WILDCARD] = new_dbsc_int64(listen->wildcard, ctx);
+	columns[DT_LISTEN_IPV6ONLY] = new_dbsc_int64(listen->ipv6only, ctx);
+	columns[DT_LISTEN_REUSEPORT] = new_dbsc_int64(listen->reuseport, ctx);
+	columns[DT_LISTEN_ADD_REUSEPORT] = new_dbsc_int64(listen->add_reuseport, ctx);
+	columns[DT_LISTEN_KEEPALIVE] = new_dbsc_int64(listen->keepalive, ctx);
+	columns[DT_LISTEN_QUIC] = new_dbsc_int64(listen->quic, ctx);
+	columns[DT_LISTEN_DEFERRED_ACCEPT] = new_dbsc_int64(listen->deferred_accept, ctx);
+	columns[DT_LISTEN_DELETE_DEFERRED] = new_dbsc_int64(listen->delete_deferred, ctx);
+	columns[DT_LISTEN_ADD_DEFERRED] = new_dbsc_int64(listen->add_deferred, ctx);
+	columns[DT_LISTEN_FASTOPEN] = new_dbsc_int64(listen->fastopen, ctx);
+	columns[DT_LISTEN_TIMESTAMP] = new_dbsc_int64(when->tv_sec, NULL);
+
+	return SQLITE_OK;
+}
+
+void
+ngx_dt_listen_snapshot(void *arg, struct timespec *when)
+{
+
+	ngx_listening_t *listen;
+	struct snapshot_args *args = (struct snapshot_args *)arg;
+	dbsc_tab *pDtab = args->tab;
+	dbsc_snap *snap = dbsc_malloc(sizeof(struct dbsc_snap));
+
+	snap->snap_table = new_dbsc_table(DT_LISTEN_MAX);
+
+	dbsc_digest_init(snap->context);
+
+	listen = (ngx_listening_t *) ngx_cycle->listening.elts;
+
+	for (ngx_uint_t i = 0; i < ngx_cycle->listening.nelts; i++) {
+		dbsc_value **columns = new_dbsc_columns(DT_LISTEN_MAX);
+		if (!columns) {
+			return;
+		}
+		ngx_dt_listen_columns(columns, &listen[i], when,
+		    snap->context);
+		dbsc_table_push(snap->snap_table, columns);
+        }
+
+	dbsc_snapshot_rotate((struct dbsc_tab *)pDtab, snap);
+}
+
+enum conn {DT_CONN_TYPE, DT_CONN_BUFFERED, DT_CONN_LOG_ERROR,
 	DT_CONN_TIMEDOUT, DT_CONN_ERROR, DT_CONN_DESTROYED,
 	DT_CONN_PIPELINE, DT_CONN_IDLE, DT_CONN_REUSABLE, DT_CONN_CLOSE,
 	DT_CONN_SHARED, DT_CONN_SENDFILE, DT_CONN_SNDLOWAT,
@@ -101,10 +178,6 @@ ngx_dt_conn_columns(dbsc_value **columns, ngx_connection_t *conn,
 /*
  * This MUST be called while locks, above, are held.
  */
-
-struct snapshot_args {
-	dbsc_tab *tab;
-};
 
 void
 ngx_dt_conn_snapshot(void *arg, struct timespec *when)
@@ -216,7 +289,8 @@ ngx_dt_enable(ngx_conf_t *cf, ngx_command_t *cmf, void *conf)
 #endif
     dbsc_tab *tab;
     struct snapshot_args *snap_args = dbsc_malloc(sizeof(struct snapshot_args));
-    char *create = "CREATE VIRTUAL TABLE conn USING conn()";
+    char *conn_create = "CREATE VIRTUAL TABLE conn USING conn()";
+    char *listen_create = "CREATE VIRTUAL TABLE listen USING listen()";
 
     lib = dbsc_init(1);
 
@@ -225,6 +299,8 @@ ngx_dt_enable(ngx_conf_t *cf, ngx_command_t *cmf, void *conf)
 	    exit(1);
     }
     
+    /* connection table */
+
     snap_args = dbsc_malloc(sizeof(struct snapshot_args));
 
     tab = dbsc_alloc(lib, "conn",
@@ -233,6 +309,30 @@ ngx_dt_enable(ngx_conf_t *cf, ngx_command_t *cmf, void *conf)
 
     if (tab == NULL) {
 	    ngx_log_error(NGX_LOG_NOTICE, cf->log, 0, "Could not create table.\n");
+	    exit(1);
+    }
+    /*
+     * NB: This is annouyingly complex.  The args require the
+     * allocated tab so we'll have to assign that inside the
+     * allocator.  Surely there is a better way.
+     */
+    
+    snap_args->tab = tab;
+
+    lib->exec(lib, conn_create, strlen(conn_create), NULL, 0);
+
+
+
+    /* listening table */
+    
+    snap_args = dbsc_malloc(sizeof(struct snapshot_args));
+
+    tab = dbsc_alloc(lib, "listen",
+	"CREATE TABLE x(DT_LISTEN_TYPE INTEGER, DT_LISTEN_BACKLOG INTEGER, DT_LISTEN_RCVBUF INTEGER, DT_LISTEN_SNDBUF INTEGER, DT_LISTEN_OPEN INTEGER, DT_LISTEN_REMAIN INTEGER, DT_LISTEN_IGNORE INTEGER, DT_LISTEN_BOUND INTEGER, DT_LISTEN_INHERITED INTEGER, DT_LISTEN_NONBLOCKING_ACCEPT INTEGER, DT_LISTEN_LISTEN INTEGER, DT_LISTEN_NONBLOCKING INTEGER, DT_LISTEN_SHARED INTEGER, DT_LISTEN_ADDR_NTOP INTEGER, DT_LISTEN_WILDCARD INTEGER, DT_LISTEN_IPV6ONLY INTEGER, DT_LISTEN_REUSEPORT INTEGER, DT_LISTEN_ADD_REUSEPORT INTEGER, DT_LISTEN_KEEPALIVE INTEGER, DT_LISTEN_QUIC INTEGER, DT_LISTEN_DEFERRED_ACCEPT INTEGER, DT_LISTEN_DELETE_DEFERRED INTEGER, DT_LISTEN_ADD_DEFERRED INTEGER, DT_LISTEN_FASTOPEN INTEGER, timestamp INTEGER)",
+	NULL, NULL, ngx_dt_listen_snapshot, snap_args, row_best_index);
+
+    if (tab == NULL) {
+	    ngx_log_error(NGX_LOG_NOTICE, cf->log, 0, "Could not create listen table.\n");
 	    exit(1);
     }
 
@@ -244,7 +344,7 @@ ngx_dt_enable(ngx_conf_t *cf, ngx_command_t *cmf, void *conf)
     
     snap_args->tab = tab;
 
-    lib->exec(lib, create, strlen(create), NULL, 0);
+    lib->exec(lib, listen_create, strlen(listen_create), NULL, 0);
 
     ngx_log_error(NGX_LOG_NOTICE, cf->log, 0, "Data Tracing Module is enabled");
 
