@@ -108,6 +108,9 @@ HTTP_UPSTREAM_RANDOM=YES
 HTTP_UPSTREAM_KEEPALIVE=YES
 HTTP_UPSTREAM_ZONE=YES
 
+# Data Tracing
+HTTP_DT=YES
+
 # STUB
 HTTP_STUB_STATUS=NO
 
@@ -297,6 +300,9 @@ $0: warning: the \"--with-ipv6\" option is deprecated"
         --with-http_perl_module=dynamic) HTTP_PERL=DYNAMIC          ;;
         --with-perl_modules_path=*)      NGX_PERL_MODULES="$value"  ;;
         --with-perl=*)                   NGX_PERL="$value"          ;;
+
+	# Data Tracing
+	--without-dt)			HTTP_DT=NO		;;
 
         # STUB
         --with-http_stub_status_module)  HTTP_STUB_STATUS=YES       ;;

@@ -1,0 +1,216 @@
+*** Makefile.objs	Wed Mar 19 15:46:53 2025
+--- objs/Makefile	Wed Mar 19 15:48:29 2025
+***************
+*** 1,6 ****
+  
+  CC =	cc
+! CFLAGS =  -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Wno-deprecated-declarations -Werror -g 
+  CPP =	cc -E
+  LINK =	$(CC)
+  
+--- 1,6 ----
+  
+  CC =	cc
+! CFLAGS =  -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g 
+  CPP =	cc -E
+  LINK =	$(CC)
+  
+***************
+*** 10,20 ****
+  	-I src/event/modules \
+  	-I src/event/quic \
+  	-I src/os/unix \
+! 	-I /opt/homebrew/Cellar/pcre2/10.44/include \
+  	-I objs \
+  	-I src/http \
+! 	-I src/http/modules \
+! 	-I /Users/gnn/Repos/Yale/Data-Tracing/osdb/src/dbsidecar/inclucde/dbsc
+  
+  
+  CORE_DEPS = src/core/nginx.h \
+--- 10,19 ----
+  	-I src/event/modules \
+  	-I src/event/quic \
+  	-I src/os/unix \
+! 	-I /usr/local/include \
+  	-I objs \
+  	-I src/http \
+! 	-I src/http/modules
+  
+  
+  CORE_DEPS = src/core/nginx.h \
+***************
+*** 75,82 ****
+  	src/os/unix/ngx_user.h \
+  	src/os/unix/ngx_dlopen.h \
+  	src/os/unix/ngx_process_cycle.h \
+! 	src/os/unix/ngx_darwin_config.h \
+! 	src/os/unix/ngx_darwin.h \
+  	src/core/ngx_regex.h \
+  	objs/ngx_auto_config.h
+  
+--- 74,81 ----
+  	src/os/unix/ngx_user.h \
+  	src/os/unix/ngx_dlopen.h \
+  	src/os/unix/ngx_process_cycle.h \
+! 	src/os/unix/ngx_freebsd_config.h \
+! 	src/os/unix/ngx_freebsd.h \
+  	src/core/ngx_regex.h \
+  	objs/ngx_auto_config.h
+  
+***************
+*** 86,92 ****
+  	-I src/event/modules \
+  	-I src/event/quic \
+  	-I src/os/unix \
+! 	-I /opt/homebrew/Cellar/pcre2/10.44/include \
+  	-I objs
+  
+  
+--- 85,91 ----
+  	-I src/event/modules \
+  	-I src/event/quic \
+  	-I src/os/unix \
+! 	-I /usr/local/include \
+  	-I objs
+  
+  
+***************
+*** 103,112 ****
+  
+  
+  HTTP_INCS = -I src/http \
+! 	-I src/http/modules \
+! 	-I /opt/homebrew/Cellar/openssl@3/3.4.1/include \
+! 	-I /Users/gnn/Repos/Yale/Data-Tracing/osdb/src/dbsidecar/include
+  
+  build:	binary modules manpage
+  
+  binary:	objs/nginx
+--- 102,110 ----
+  
+  
+  HTTP_INCS = -I src/http \
+! 	-I src/http/modules
+  
++ 
+  build:	binary modules manpage
+  
+  binary:	objs/nginx
+***************
+*** 175,183 ****
+  	objs/src/os/unix/ngx_user.o \
+  	objs/src/os/unix/ngx_dlopen.o \
+  	objs/src/os/unix/ngx_process_cycle.o \
+! 	objs/src/os/unix/ngx_darwin_init.o \
+  	objs/src/event/modules/ngx_kqueue_module.o \
+- 	objs/src/os/unix/ngx_darwin_sendfile_chain.o \
+  	objs/src/core/ngx_regex.o \
+  	objs/src/http/ngx_http.o \
+  	objs/src/http/ngx_http_core_module.o \
+--- 173,181 ----
+  	objs/src/os/unix/ngx_user.o \
+  	objs/src/os/unix/ngx_dlopen.o \
+  	objs/src/os/unix/ngx_process_cycle.o \
+! 	objs/src/os/unix/ngx_freebsd_init.o \
+! 	objs/src/os/unix/ngx_freebsd_sendfile_chain.o \
+  	objs/src/event/modules/ngx_kqueue_module.o \
+  	objs/src/core/ngx_regex.o \
+  	objs/src/http/ngx_http.o \
+  	objs/src/http/ngx_http_core_module.o \
+***************
+*** 298,306 ****
+  	objs/src/os/unix/ngx_user.o \
+  	objs/src/os/unix/ngx_dlopen.o \
+  	objs/src/os/unix/ngx_process_cycle.o \
+! 	objs/src/os/unix/ngx_darwin_init.o \
+  	objs/src/event/modules/ngx_kqueue_module.o \
+- 	objs/src/os/unix/ngx_darwin_sendfile_chain.o \
+  	objs/src/core/ngx_regex.o \
+  	objs/src/http/ngx_http.o \
+  	objs/src/http/ngx_http_core_module.o \
+--- 296,304 ----
+  	objs/src/os/unix/ngx_user.o \
+  	objs/src/os/unix/ngx_dlopen.o \
+  	objs/src/os/unix/ngx_process_cycle.o \
+! 	objs/src/os/unix/ngx_freebsd_init.o \
+! 	objs/src/os/unix/ngx_freebsd_sendfile_chain.o \
+  	objs/src/event/modules/ngx_kqueue_module.o \
+  	objs/src/core/ngx_regex.o \
+  	objs/src/http/ngx_http.o \
+  	objs/src/http/ngx_http_core_module.o \
+***************
+*** 355,364 ****
+  	objs/src/http/modules/ngx_http_upstream_zone_module.o \
+  	objs/src/http/modules/ngx_dt.o \
+  	objs/ngx_modules.o \
+! 	objs/sqlite3.o \
+! 	/Users/gnn/Repos/Yale/Data-Tracing/osdb/build/src/dbsidecar/libdbsc.a \
+! 	/opt/homebrew/Cellar/openssl@3/3.4.1/lib/libcrypto.a \
+! 	-L/opt/homebrew/Cellar/pcre2/10.44/lib -lpcre2-8 -lz
+  
+  
+  modules:
+--- 353,361 ----
+  	objs/src/http/modules/ngx_http_upstream_zone_module.o \
+  	objs/src/http/modules/ngx_dt.o \
+  	objs/ngx_modules.o \
+! 	-lcrypt -L/usr/local/lib -Wl,-R/usr/local/lib -lpcre2-8 -lz \
+! 	-Wl,-E
+! 	
+  
+  
+  modules:
+***************
+*** 818,842 ****
+  		src/os/unix/ngx_process_cycle.c
+  
+  
+! objs/src/os/unix/ngx_darwin_init.o:	$(CORE_DEPS) \
+! 	src/os/unix/ngx_darwin_init.c
+  	$(CC) -c $(CFLAGS) $(CORE_INCS) \
+! 		-o objs/src/os/unix/ngx_darwin_init.o \
+! 		src/os/unix/ngx_darwin_init.c
+  
+  
+  objs/src/event/modules/ngx_kqueue_module.o:	$(CORE_DEPS) \
+  	src/event/modules/ngx_kqueue_module.c
+  	$(CC) -c $(CFLAGS) $(CORE_INCS) \
+  		-o objs/src/event/modules/ngx_kqueue_module.o \
+  		src/event/modules/ngx_kqueue_module.c
+- 
+- 
+- objs/src/os/unix/ngx_darwin_sendfile_chain.o:	$(CORE_DEPS) \
+- 	src/os/unix/ngx_darwin_sendfile_chain.c
+- 	$(CC) -c $(CFLAGS) $(CORE_INCS) \
+- 		-o objs/src/os/unix/ngx_darwin_sendfile_chain.o \
+- 		src/os/unix/ngx_darwin_sendfile_chain.c
+  
+  
+  objs/src/core/ngx_regex.o:	$(CORE_DEPS) \
+--- 815,839 ----
+  		src/os/unix/ngx_process_cycle.c
+  
+  
+! objs/src/os/unix/ngx_freebsd_init.o:	$(CORE_DEPS) \
+! 	src/os/unix/ngx_freebsd_init.c
+  	$(CC) -c $(CFLAGS) $(CORE_INCS) \
+! 		-o objs/src/os/unix/ngx_freebsd_init.o \
+! 		src/os/unix/ngx_freebsd_init.c
+  
+  
++ objs/src/os/unix/ngx_freebsd_sendfile_chain.o:	$(CORE_DEPS) \
++ 	src/os/unix/ngx_freebsd_sendfile_chain.c
++ 	$(CC) -c $(CFLAGS) $(CORE_INCS) \
++ 		-o objs/src/os/unix/ngx_freebsd_sendfile_chain.o \
++ 		src/os/unix/ngx_freebsd_sendfile_chain.c
++ 
++ 
+  objs/src/event/modules/ngx_kqueue_module.o:	$(CORE_DEPS) \
+  	src/event/modules/ngx_kqueue_module.c
+  	$(CC) -c $(CFLAGS) $(CORE_INCS) \
+  		-o objs/src/event/modules/ngx_kqueue_module.o \
+  		src/event/modules/ngx_kqueue_module.c
+  
+  
+  objs/src/core/ngx_regex.o:	$(CORE_DEPS) \

@@ -951,6 +951,21 @@ if [ $HTTP = YES ]; then
 
         . auto/module
     fi
+
+    if [ $HTTP_DT = YES ]; then
+        have=NGX_DT . auto/have
+
+        ngx_module_name=ngx_http_dt_module
+        ngx_module_incs=
+        ngx_module_deps=
+        ngx_module_srcs=src/http/modules/ngx_dt.c
+        ngx_module_libs=
+        ngx_module_link=$HTTP_DT
+
+        . auto/module
+    fi
+
+
 fi
 
 
